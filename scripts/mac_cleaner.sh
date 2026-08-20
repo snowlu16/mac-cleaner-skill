@@ -15,10 +15,14 @@ NC='\033[0m' # No Color
 # 辅助函数：计算文件夹或文件大小 (MB/GB/KB)
 get_size() {
     local target="$1"
+    local res=""
     if [ -e "$target" ]; then
-        du -sh "$target" 2>/dev/null | awk '{print $1}'
-    else
+        res=$(du -sh "$target" 2>/dev/null | awk '{print $1}')
+    fi
+    if [ -z "$res" ]; then
         echo "0B"
+    else
+        echo "$res"
     fi
 }
 
@@ -44,8 +48,12 @@ echo "--------------------------------------------------------------------------
 
 # 1. 计算各个待清理模块大小
 SIZE_CACHES=$(get_size "$HOME/Library/Caches")
-SIZE_DEV_CACHE=$(du -sh ~/.npm ~/.cache 2>/dev/null | awk '{sum+=$1} END {print sum " (合计)"}')
-if [ -z "$SIZE_DEV_CACHE" ] || [ "$SIZE_DEV_CACHE" = " (合计)" ]; then SIZE_DEV_CACHE="0B"; fi
+
+# 修正前端开发缓存大小计算
+SIZE_DEV_CACHE=$(du -ch ~/.npm ~/.cache 2>/dev/null | tail -n 1 | awk '{print $1}')
+if [ -z "$SIZE_DEV_CACHE" ] || [[ "$SIZE_DEV_CACHE" == *"total"* ]]; then
+    SIZE_DEV_CACHE="0B"
+fi
 
 SIZE_XCODE=$(get_size "$HOME/Library/Developer/Xcode/DerivedData")
 SIZE_BREW=$(get_size "$HOME/Library/Caches/Homebrew")
@@ -64,8 +72,8 @@ if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     SIZE_DOCKER=$(docker system df 2>/dev/null | awk '/Images|Containers|Local Volumes/ {print $1 ": " $4}' | tr '\n' '  ')
 fi
 
-# Time Machine 快照
-SNAP_COUNT=$(tmutil listlocalsnapshots / 2>/dev/null | grep -c "com.apple.TimeMachine" || echo "0")
+# Time Machine 快照 (修复空行错误)
+SNAP_COUNT=$(tmutil listlocalsnapshots / 2>/dev/null | grep "com.apple.TimeMachine" | wc -l | tr -d ' ')
 
 # 打印扫描菜单
 echo -e "${BOLD}可以进行安全清理的项目表：${NC}"
@@ -76,7 +84,7 @@ printf "  [4] %-36s ${CYAN}%s${NC}\n" "Homebrew 下载缓存与历史包" "$SIZE
 printf "  [5] %-36s ${CYAN}%s${NC}\n" "下载文件夹中的安装包 (*.dmg, *.zip)" "$SIZE_DOWNLOADS_PKG"
 printf "  [6] %-36s ${CYAN}%s${NC}\n" "废纸篓全部内容 (~/.Trash/*)" "$SIZE_TRASH"
 printf "  [7] %-36s ${CYAN}%s${NC}\n" "Docker 废弃镜像/容器与数据卷" "$SIZE_DOCKER"
-printf "  [8] %-36s ${CYAN}%s${NC}\n" "Time Machine 本地快照" "$SNAP_COUNT 个快照"
+printf "  [8] %-36s ${CYAN}%s 个快照${NC}\n" "Time Machine 本地快照" "$SNAP_COUNT"
 
 echo "--------------------------------------------------------------------------------"
 echo -e "${BOLD}📌 巨无霸文件夹特别提醒 (需要手动确认或应用内清理)：${NC}"
@@ -85,10 +93,10 @@ if [ -e "$HOME/Documents/data_transfer" ]; then
     SIZE_DT=$(get_size "$HOME/Documents/data_transfer")
     echo -e "  • ${YELLOW}~/Documents/data_transfer${NC} (占用 ${RED}${BOLD}$SIZE_DT${NC}) -> 如确认是已完成同步的数据备份，请手动删除！"
 fi
-# 检查微信占用
+# 检查微信占用 (修复 backtick command not found 错误)
 if [ -e "$HOME/Library/Containers/com.tencent.xinWeChat" ]; then
     SIZE_WX=$(get_size "$HOME/Library/Containers/com.tencent.xinWeChat")
-    echo -e "  • ${YELLOW}微信聊天沙盒 (`xinWeChat`)${NC} (占用 ${RED}${BOLD}$SIZE_WX${NC}) -> 强力建议打开微信客户端【设置 -> 存储空间】中一键清理视频和原图！"
+    echo -e "  • ${YELLOW}微信聊天沙盒 (xinWeChat)${NC} (占用 ${RED}${BOLD}$SIZE_WX${NC}) -> 强力建议打开微信客户端【设置 -> 存储空间】中一键清理视频和原图！"
 fi
 echo "--------------------------------------------------------------------------------"
 echo ""
