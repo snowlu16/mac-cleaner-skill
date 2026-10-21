@@ -37,16 +37,21 @@ ${CYAN}用法：${NC}
 ${CYAN}清理目标选项 (支持组合指定)：${NC}
   --caches, -c            清理所有用户应用临时缓存 (~/Library/Caches/*)
   --cache-dir <name>      仅清理指定应用的缓存目录 (~/Library/Caches/<name>)
-  --dev                   一键清理所有开发相关缓存 (npm + gradle + xcode + brew)
+  --dev                   一键清理所有开发相关缓存 (npm, yarn, pip, go, cargo, gradle, xcode, brew)
   --npm                   清理 npm 全局缓存 (~/.npm/_cacache)
+  --yarn                  清理 yarn 缓存
+  --pip                   清理 pip 缓存 (~/Library/Caches/pip)
   --gradle                清理 Gradle 构建依赖缓存 (~/.gradle/caches)
   --xcode                 清理 Xcode 编译派生文件 (DerivedData)
+  --go                    清理 Go 语言缓存
+  --cargo                 清理 Rust Cargo 缓存
   --homebrew, --brew      清理 Homebrew 过期包与下载缓存 (brew cleanup)
   --docker                清理 Docker 悬空镜像/容器/网络 (保留命名数据卷)
+  --ios                   清理 iOS 设备备份与系统固件更新缓存
   --downloads-pkg, --pkg  清理下载目录中的安装包 (*.dmg, *.pkg, *.iso)
   --trash                 清空当前用户废纸篓 (~/.Trash)
   --logs                  清理用户级诊断日志 (~/Library/Logs)
-  --all-safe              安全全选 (caches + dev + brew + pkg)
+  --all-safe              安全全选 (caches + dev + brew + pkg + ios)
 
 ${CYAN}控制选项：${NC}
   --dry-run, -n           试运行模式：仅计算并预览将释放的空间，不执行任何实际删除
@@ -64,10 +69,15 @@ EOF
 DO_CACHES=0
 SPECIFIC_CACHE_DIR=""
 DO_NPM=0
+DO_YARN=0
+DO_PIP=0
 DO_GRADLE=0
 DO_XCODE=0
+DO_GO=0
+DO_CARGO=0
 DO_BREW=0
 DO_DOCKER=0
+DO_IOS=0
 DO_PKG=0
 DO_TRASH=0
 DO_LOGS=0
@@ -92,17 +102,22 @@ while (( $# > 0 )); do
       SPECIFIC_CACHE_DIR="$2"
       shift 2 ;;
     --dev|dev)
-      DO_NPM=1; DO_GRADLE=1; DO_XCODE=1; DO_BREW=1; shift ;;
+      DO_NPM=1; DO_YARN=1; DO_PIP=1; DO_GRADLE=1; DO_XCODE=1; DO_GO=1; DO_CARGO=1; DO_BREW=1; shift ;;
     --npm|npm) DO_NPM=1; shift ;;
+    --yarn|yarn) DO_YARN=1; shift ;;
+    --pip|pip) DO_PIP=1; shift ;;
     --gradle|gradle) DO_GRADLE=1; shift ;;
     --xcode|xcode) DO_XCODE=1; shift ;;
+    --go|go) DO_GO=1; shift ;;
+    --cargo|cargo) DO_CARGO=1; shift ;;
     --homebrew|--brew|brew) DO_BREW=1; shift ;;
     --docker|docker) DO_DOCKER=1; shift ;;
+    --ios|ios) DO_IOS=1; shift ;;
     --downloads-pkg|--pkg|pkg) DO_PKG=1; shift ;;
     --trash|trash) DO_TRASH=1; shift ;;
     --logs|logs) DO_LOGS=1; shift ;;
     --all-safe|all-safe)
-      DO_CACHES=1; DO_NPM=1; DO_GRADLE=1; DO_XCODE=1; DO_BREW=1; DO_PKG=1; shift ;;
+      DO_CACHES=1; DO_NPM=1; DO_YARN=1; DO_PIP=1; DO_GRADLE=1; DO_XCODE=1; DO_GO=1; DO_CARGO=1; DO_BREW=1; DO_IOS=1; DO_PKG=1; shift ;;
     --dry-run|-n) DRY_RUN=1; shift ;;
     --yes|-y) AUTO_YES=1; shift ;;
     --help|-h) usage; exit 0 ;;
@@ -141,6 +156,16 @@ if [[ "$DO_NPM" -eq 1 ]]; then
   printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "npm 全局依赖缓存 (~/.npm/_cacache)" "$(size "$HOME/.npm/_cacache")"
 fi
 
+if [[ "$DO_YARN" -eq 1 ]]; then
+  TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
+  printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "Yarn 缓存 (~/Library/Caches/Yarn)" "$(size "$HOME/Library/Caches/Yarn")"
+fi
+
+if [[ "$DO_PIP" -eq 1 ]]; then
+  TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
+  printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "pip 缓存 (~/Library/Caches/pip)" "$(size "$HOME/Library/Caches/pip")"
+fi
+
 if [[ "$DO_GRADLE" -eq 1 ]]; then
   TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
   printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "Gradle 依赖构建缓存 (~/.gradle/caches)" "$(size "$HOME/.gradle/caches")"
@@ -151,9 +176,24 @@ if [[ "$DO_XCODE" -eq 1 ]]; then
   printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "Xcode 编译派生数据 (DerivedData)" "$(size "$HOME/Library/Developer/Xcode/DerivedData")"
 fi
 
+if [[ "$DO_GO" -eq 1 ]]; then
+  TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
+  printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "Go 构建及依赖缓存 (~/Library/Caches/go-build 等)" "$(size "$HOME/Library/Caches/go-build")"
+fi
+
+if [[ "$DO_CARGO" -eq 1 ]]; then
+  TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
+  printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "Cargo 注册表及 Git 缓存 (~/.cargo/registry 等)" "$(size "$HOME/.cargo/registry")"
+fi
+
 if [[ "$DO_BREW" -eq 1 ]]; then
   TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
   printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "Homebrew 下载缓存与历史旧包" "$(size "$HOME/Library/Caches/Homebrew")"
+fi
+
+if [[ "$DO_IOS" -eq 1 ]]; then
+  TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
+  printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "iOS 设备备份 (~/Library/Application Support/MobileSync/Backup)" "$(size "$HOME/Library/Application Support/MobileSync/Backup")"
 fi
 
 if [[ "$DO_PKG" -eq 1 ]]; then
@@ -233,6 +273,21 @@ if [[ "$DO_NPM" -eq 1 ]]; then
   print -- "${GREEN}✔ 完成${NC}"
 fi
 
+if [[ "$DO_YARN" -eq 1 ]]; then
+  print -n -- "🧹 正在清理 Yarn 缓存... "
+  if has yarn; then
+    yarn cache clean 2>/dev/null || true
+  fi
+  rm -rf "$HOME/Library/Caches/Yarn" 2>/dev/null || true
+  print -- "${GREEN}✔ 完成${NC}"
+fi
+
+if [[ "$DO_PIP" -eq 1 ]]; then
+  print -n -- "🧹 正在清理 pip 缓存... "
+  rm -rf "$HOME/Library/Caches/pip" 2>/dev/null || true
+  print -- "${GREEN}✔ 完成${NC}"
+fi
+
 if [[ "$DO_GRADLE" -eq 1 ]]; then
   print -n -- "🧹 正在清理 Gradle 依赖构建缓存... "
   rm -rf "$HOME/.gradle/caches/"* 2>/dev/null || true
@@ -245,6 +300,23 @@ if [[ "$DO_XCODE" -eq 1 ]]; then
   print -- "${GREEN}✔ 完成${NC}"
 fi
 
+if [[ "$DO_GO" -eq 1 ]]; then
+  print -n -- "🧹 正在清理 Go 缓存... "
+  if has go; then
+    go clean -cache -modcache 2>/dev/null || true
+  fi
+  rm -rf "$HOME/Library/Caches/go-build" 2>/dev/null || true
+  rm -rf "$HOME/go/pkg/mod/cache" 2>/dev/null || true
+  print -- "${GREEN}✔ 完成${NC}"
+fi
+
+if [[ "$DO_CARGO" -eq 1 ]]; then
+  print -n -- "🧹 正在清理 Cargo 缓存... "
+  rm -rf "$HOME/.cargo/registry/cache/"* 2>/dev/null || true
+  rm -rf "$HOME/.cargo/git/db/"* 2>/dev/null || true
+  print -- "${GREEN}✔ 完成${NC}"
+fi
+
 if [[ "$DO_BREW" -eq 1 ]]; then
   print -n -- "🧹 正在执行 Homebrew 历史包与下载清理... "
   if has brew; then
@@ -253,6 +325,13 @@ if [[ "$DO_BREW" -eq 1 ]]; then
   else
     print -- "${YELLOW}• 未安装 Homebrew (已跳过)${NC}"
   fi
+fi
+
+if [[ "$DO_IOS" -eq 1 ]]; then
+  print -n -- "🧹 正在清理 iOS 设备备份与固件... "
+  rm -rf "$HOME/Library/Application Support/MobileSync/Backup/"* 2>/dev/null || true
+  rm -rf "$HOME/Library/iTunes/iPhone Software Updates/"* 2>/dev/null || true
+  print -- "${GREEN}✔ 完成${NC}"
 fi
 
 if [[ "$DO_PKG" -eq 1 ]]; then
