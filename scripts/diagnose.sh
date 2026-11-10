@@ -4,6 +4,7 @@
 # 纯只读设计：不修改、不删除任何文件，专供 AI 智能体与开发者进行系统空间排查
 # ==============================================================================
 set -u
+setopt null_glob
 
 # 格式化输出大小辅助函数
 size() {
@@ -51,27 +52,42 @@ print -- ""
 
 # 2. 关键用户目录概览
 print -- "📊 关键个人目录空间分布 (High-Level Overview):"
-printf "   %-36s %s\n" "用户临时缓存 (~/Library/Caches)" "$(size "$HOME/Library/Caches")"
-printf "   %-36s %s\n" "应用沙盒数据 (~/Library/Containers)" "$(size "$HOME/Library/Containers")"
-printf "   %-36s %s\n" "应用持久数据 (~/Library/Application Support)" "$(size "$HOME/Library/Application Support")"
-printf "   %-36s %s\n" "开发者目录 (~/Library/Developer)" "$(size "$HOME/Library/Developer")"
-printf "   %-36s %s\n" "下载文件夹 (~/Downloads)" "$(size "$HOME/Downloads")"
-printf "   %-36s %s\n" "废纸篓内容 (~/.Trash)" "$(size "$HOME/.Trash")"
+printf "   %-42s %s\n" "用户临时缓存 (~/Library/Caches)" "$(size "$HOME/Library/Caches")"
+printf "   %-42s %s\n" "XDG 通用缓存 (~/.cache)" "$(size "$HOME/.cache")"
+printf "   %-42s %s\n" "用户级诊断日志 (~/Library/Logs)" "$(size "$HOME/Library/Logs")"
+printf "   %-42s %s\n" "WebKit 网页缓存 (~/Library/WebKit)" "$(size "$HOME/Library/WebKit")"
+printf "   %-42s %s\n" "应用沙盒数据 (~/Library/Containers)" "$(size "$HOME/Library/Containers")"
+printf "   %-42s %s\n" "应用持久数据 (~/Library/Application Support)" "$(size "$HOME/Library/Application Support")"
+printf "   %-42s %s\n" "开发者目录 (~/Library/Developer)" "$(size "$HOME/Library/Developer")"
+printf "   %-42s %s\n" "下载文件夹 (~/Downloads)" "$(size "$HOME/Downloads")"
+printf "   %-42s %s\n" "废纸篓内容 (~/.Trash)" "$(size "$HOME/.Trash")"
 
 # 3. 常见可安全回收的开发与构建缓存
-print -- "\n🛠️ 常见开发构建与依赖缓存 (Developer Caches):"
-printf "   %-36s %s\n" "Xcode DerivedData" "$(size "$HOME/Library/Developer/Xcode/DerivedData")"
-printf "   %-36s %s\n" "Xcode iOS DeviceSupport" "$(size "$HOME/Library/Developer/Xcode/iOS DeviceSupport")"
-printf "   %-36s %s\n" "npm 全局缓存 (~/.npm/_cacache)" "$(size "$HOME/.npm/_cacache")"
-printf "   %-36s %s\n" "Gradle 依赖缓存 (~/.gradle/caches)" "$(size "$HOME/.gradle/caches")"
-printf "   %-36s %s\n" "用户级诊断日志 (~/Library/Logs)" "$(size "$HOME/Library/Logs")"
-printf "   %-36s %s\n" "Homebrew 下载缓存" "$(size "$HOME/Library/Caches/Homebrew")"
+print -- "\n🛠️ 常见开发构建与依赖缓存 (Developer & Tool Caches):"
+printf "   %-42s %s\n" "npm 全局缓存 (~/.npm/_cacache)" "$(size "$HOME/.npm/_cacache")"
+printf "   %-42s %s\n" "Yarn 缓存 (~/Library/Caches/Yarn)" "$(size "$HOME/Library/Caches/Yarn")"
+printf "   %-42s %s\n" "pnpm 缓存 (~/.pnpm-store)" "$(size "$HOME/.pnpm-store")"
+printf "   %-42s %s\n" "pip 缓存 (~/Library/Caches/pip)" "$(size "$HOME/Library/Caches/pip")"
+printf "   %-42s %s\n" "Gradle 依赖缓存 (~/.gradle/caches)" "$(size "$HOME/.gradle/caches")"
+printf "   %-42s %s\n" "Maven 本地仓库 (~/.m2/repository)" "$(size "$HOME/.m2/repository")"
+printf "   %-42s %s\n" "Go 构建缓存 (~/Library/Caches/go-build)" "$(size "$HOME/Library/Caches/go-build")"
+printf "   %-42s %s\n" "Cargo 缓存 (~/.cargo/registry)" "$(size "$HOME/.cargo/registry")"
+printf "   %-42s %s\n" "CocoaPods 缓存 (~/Library/Caches/CocoaPods)" "$(size "$HOME/Library/Caches/CocoaPods")"
+printf "   %-42s %s\n" "Xcode DerivedData" "$(size "$HOME/Library/Developer/Xcode/DerivedData")"
+printf "   %-42s %s\n" "Xcode Archives" "$(size "$HOME/Library/Developer/Xcode/Archives")"
+printf "   %-42s %s\n" "Xcode iOS DeviceSupport" "$(size "$HOME/Library/Developer/Xcode/iOS DeviceSupport")"
+printf "   %-42s %s\n" "Homebrew 下载缓存" "$(size "$HOME/Library/Caches/Homebrew")"
+printf "   %-42s %s\n" "Parallels 镜像缓存 (~/Library/Parallels/Downloads)" "$(size "$HOME/Library/Parallels/Downloads")"
+printf "   %-42s %s\n" "Android SDK (~/Library/Android/sdk)" "$(size "$HOME/Library/Android/sdk")"
+printf "   %-42s %s\n" "Android 模拟器镜像 (~/.android/avd)" "$(size "$HOME/.android/avd")"
+printf "   %-42s %s\n" "Codex 缓存 (~/.codex/cache)" "$(size "$HOME/.codex/cache")"
+printf "   %-42s %s\n" "WorkBuddy 日志与追踪 (~/.workbuddy/logs)" "$(size "$HOME/.workbuddy/logs")"
 
 # 4. 下载目录中的安装包检查
 PKG_COUNT=$(find "$HOME/Downloads" -maxdepth 1 -type f \( -name "*.dmg" -o -name "*.pkg" -o -name "*.iso" \) 2>/dev/null | wc -l | tr -d ' ')
 if [[ "$PKG_COUNT" -gt 0 ]]; then
   PKG_SIZE=$(find "$HOME/Downloads" -maxdepth 1 -type f \( -name "*.dmg" -o -name "*.pkg" -o -name "*.iso" \) -exec du -ch {} + 2>/dev/null | tail -n 1 | awk '{print $1}')
-  printf "   %-36s %s (%s 个安装包)\n" "下载文件夹中的安装镜像 (*.dmg/*.pkg)" "$PKG_SIZE" "$PKG_COUNT"
+  printf "   %-42s %s (%s 个安装包)\n" "下载文件夹中的安装镜像 (*.dmg/*.pkg/*.iso)" "$PKG_SIZE" "$PKG_COUNT"
 fi
 
 # 5. Docker 资源占用
@@ -91,13 +107,15 @@ fi
 
 # 7. 各大目录前 N 大子项
 top_subdirs "$HOME/Library/Caches" "用户应用缓存最占空间项 (~/Library/Caches)" 8
+top_subdirs "$HOME/.cache" "XDG 通用缓存最占空间项 (~/.cache)" 6
+top_subdirs "$HOME/Library/Logs" "用户级诊断日志最占空间项 (~/Library/Logs)" 6
 top_subdirs "$HOME/Library/Containers" "沙盒应用最占空间项 (~/Library/Containers - 请在 App 内清理)" 6
-top_subdirs "$HOME/Library/Application Support" "应用支持库最占空间项 (~/Library/Application Support)" 6
+top_subdirs "$HOME/Library/Application Support" "应用支持库最占空间项 (~/Library/Application Support)" 8
 
 # 8. 深度扫描（如果指定了 --deep）
 if [[ "$DEEP_SCAN" -eq 1 ]]; then
-  print -- "\n🔍 个人主目录各文件夹总占用深度扫描 (Home Top Dirs):"
-  (cd "$HOME" && du -sm Library Downloads Documents Desktop Movies Music Pictures .Trash .npm .gradle .cache 2>/dev/null | sort -nr | head -n 10 | awk '{print "   " $1 " MB\t" $2}') || true
+  print -- "\n🔍 个人主目录各文件夹（含隐藏目录）总占用深度扫描 (Home Top Dirs):"
+  (cd "$HOME" && du -sm Library Downloads Documents Desktop Movies Music Pictures .Trash .[a-zA-Z0-9]* 2>/dev/null | sort -nr | head -n 15 | awk '{print "   " $1 " MB\t" $2}') || true
 fi
 
 print -- "\n================================================================================"
