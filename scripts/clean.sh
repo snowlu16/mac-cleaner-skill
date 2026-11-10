@@ -40,6 +40,10 @@ ${CYAN}清理目标选项 (支持组合指定)：${NC}
   --dev                   一键清理所有开发相关缓存 (npm, yarn, pip, go, cargo, gradle, xcode, brew)
   --npm                   清理 npm 全局缓存 (~/.npm/_cacache)
   --yarn                  清理 yarn 缓存
+  --pnpm                  清理 pnpm 缓存 (~/Library/pnpm/store 或 ~/.pnpm-store)
+  --cocoapods, --pod      清理 CocoaPods 缓存
+  --xcode-sim             清理 Xcode 无用模拟器与缓存
+  --xcode-archives        清理 Xcode 历史打包文件 (Archives)
   --pip                   清理 pip 缓存 (~/Library/Caches/pip)
   --gradle                清理 Gradle 构建依赖缓存 (~/.gradle/caches)
   --xcode                 清理 Xcode 编译派生文件 (DerivedData)
@@ -70,6 +74,10 @@ DO_CACHES=0
 SPECIFIC_CACHE_DIR=""
 DO_NPM=0
 DO_YARN=0
+DO_PNPM=0
+DO_POD=0
+DO_XCODE_SIM=0
+DO_XCODE_ARC=0
 DO_PIP=0
 DO_GRADLE=0
 DO_XCODE=0
@@ -102,9 +110,13 @@ while (( $# > 0 )); do
       SPECIFIC_CACHE_DIR="$2"
       shift 2 ;;
     --dev|dev)
-      DO_NPM=1; DO_YARN=1; DO_PIP=1; DO_GRADLE=1; DO_XCODE=1; DO_GO=1; DO_CARGO=1; DO_BREW=1; shift ;;
+      DO_NPM=1; DO_YARN=1; DO_PNPM=1; DO_POD=1; DO_PIP=1; DO_GRADLE=1; DO_XCODE=1; DO_XCODE_SIM=1; DO_XCODE_ARC=1; DO_GO=1; DO_CARGO=1; DO_BREW=1; shift ;;
     --npm|npm) DO_NPM=1; shift ;;
     --yarn|yarn) DO_YARN=1; shift ;;
+    --pnpm|pnpm) DO_PNPM=1; shift ;;
+    --cocoapods|--pod|pod) DO_POD=1; shift ;;
+    --xcode-sim) DO_XCODE_SIM=1; shift ;;
+    --xcode-archives) DO_XCODE_ARC=1; shift ;;
     --pip|pip) DO_PIP=1; shift ;;
     --gradle|gradle) DO_GRADLE=1; shift ;;
     --xcode|xcode) DO_XCODE=1; shift ;;
@@ -117,7 +129,7 @@ while (( $# > 0 )); do
     --trash|trash) DO_TRASH=1; shift ;;
     --logs|logs) DO_LOGS=1; shift ;;
     --all-safe|all-safe)
-      DO_CACHES=1; DO_NPM=1; DO_YARN=1; DO_PIP=1; DO_GRADLE=1; DO_XCODE=1; DO_GO=1; DO_CARGO=1; DO_BREW=1; DO_IOS=1; DO_PKG=1; shift ;;
+      DO_CACHES=1; DO_NPM=1; DO_YARN=1; DO_PNPM=1; DO_POD=1; DO_PIP=1; DO_GRADLE=1; DO_XCODE=1; DO_XCODE_SIM=1; DO_XCODE_ARC=1; DO_GO=1; DO_CARGO=1; DO_BREW=1; DO_IOS=1; DO_PKG=1; shift ;;
     --dry-run|-n) DRY_RUN=1; shift ;;
     --yes|-y) AUTO_YES=1; shift ;;
     --help|-h) usage; exit 0 ;;
@@ -161,6 +173,16 @@ if [[ "$DO_YARN" -eq 1 ]]; then
   printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "Yarn 缓存 (~/Library/Caches/Yarn)" "$(size "$HOME/Library/Caches/Yarn")"
 fi
 
+if [[ "$DO_PNPM" -eq 1 ]]; then
+  TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
+  printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "pnpm 缓存 (~/Library/pnpm/store 等)" "$(size "$HOME/.pnpm-store")"
+fi
+
+if [[ "$DO_POD" -eq 1 ]]; then
+  TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
+  printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "CocoaPods 缓存 (~/Library/Caches/CocoaPods)" "$(size "$HOME/Library/Caches/CocoaPods")"
+fi
+
 if [[ "$DO_PIP" -eq 1 ]]; then
   TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
   printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "pip 缓存 (~/Library/Caches/pip)" "$(size "$HOME/Library/Caches/pip")"
@@ -174,6 +196,16 @@ fi
 if [[ "$DO_XCODE" -eq 1 ]]; then
   TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
   printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "Xcode 编译派生数据 (DerivedData)" "$(size "$HOME/Library/Developer/Xcode/DerivedData")"
+fi
+
+if [[ "$DO_XCODE_SIM" -eq 1 ]]; then
+  TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
+  printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "Xcode 无用模拟器 (xcrun simctl)" "需运行 xcrun"
+fi
+
+if [[ "$DO_XCODE_ARC" -eq 1 ]]; then
+  TOTAL_ITEMS=$((TOTAL_ITEMS + 1))
+  printf "  [%d] %-36s ${CYAN}%s${NC}\n" "$TOTAL_ITEMS" "Xcode 历史打包产物 (Archives)" "$(size "$HOME/Library/Developer/Xcode/Archives")"
 fi
 
 if [[ "$DO_GO" -eq 1 ]]; then
@@ -282,6 +314,22 @@ if [[ "$DO_YARN" -eq 1 ]]; then
   print -- "${GREEN}✔ 完成${NC}"
 fi
 
+if [[ "$DO_PNPM" -eq 1 ]]; then
+  print -n -- "🧹 正在清理 pnpm 缓存... "
+  if has pnpm; then
+    pnpm store prune 2>/dev/null || true
+  fi
+  rm -rf "$HOME/.pnpm-store" 2>/dev/null || true
+  rm -rf "$HOME/Library/pnpm/store" 2>/dev/null || true
+  print -- "${GREEN}✔ 完成${NC}"
+fi
+
+if [[ "$DO_POD" -eq 1 ]]; then
+  print -n -- "🧹 正在清理 CocoaPods 缓存... "
+  rm -rf "$HOME/Library/Caches/CocoaPods" 2>/dev/null || true
+  print -- "${GREEN}✔ 完成${NC}"
+fi
+
 if [[ "$DO_PIP" -eq 1 ]]; then
   print -n -- "🧹 正在清理 pip 缓存... "
   rm -rf "$HOME/Library/Caches/pip" 2>/dev/null || true
@@ -297,6 +345,25 @@ fi
 if [[ "$DO_XCODE" -eq 1 ]]; then
   print -n -- "🧹 正在清理 Xcode 派生构建产物 (DerivedData)... "
   rm -rf "$HOME/Library/Developer/Xcode/DerivedData/"* 2>/dev/null || true
+  print -- "${GREEN}✔ 完成${NC}"
+fi
+
+if [[ "$DO_XCODE_SIM" -eq 1 ]]; then
+  print -n -- "🧹 正在清理 Xcode 无用模拟器... "
+  if has xcrun; then
+    xcrun simctl delete unavailable 2>/dev/null || true
+  fi
+  if [[ -d "$HOME/Library/Developer/CoreSimulator/Caches" ]]; then
+    rm -rf "$HOME/Library/Developer/CoreSimulator/Caches/"* 2>/dev/null || true
+  fi
+  print -- "${GREEN}✔ 完成${NC}"
+fi
+
+if [[ "$DO_XCODE_ARC" -eq 1 ]]; then
+  print -n -- "🧹 正在清理 Xcode 历史打包文件 (Archives)... "
+  if [[ -d "$HOME/Library/Developer/Xcode/Archives" ]]; then
+    rm -rf "$HOME/Library/Developer/Xcode/Archives/"* 2>/dev/null || true
+  fi
   print -- "${GREEN}✔ 完成${NC}"
 fi
 
